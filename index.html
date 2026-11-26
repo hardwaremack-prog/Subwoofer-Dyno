@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Subwoofer Dyno</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: competition-lane tech sheet — terse, numeric, a little loud.
+   IDEA: an SPL dyno bay: the sub in its box on the left of the bay, the dyno sheet scrolling beside it.
+   PICTURE: carpeted box with the subs whose cones really move, plus the live SPL / excursion / port / pressure sheet.
+   COLOUR and TYPE: steel panel, black ink, alarm red; night is carpet black. Inter Tight + Inter.
+   LAYOUT: controls rail left, bay + sheet right, long thin stat strips under it, warnings last. */
+:root{color-scheme:light dark;--bg:light-dark(#d5dbe0,#16191c);--panel:light-dark(#eef1f3,#1f2327);--ink:light-dark(#0b0c0d,#eef1f3);--mute:light-dark(#4d5660,#9aa4ad);--line:light-dark(#b5bec6,#30363c);--red:#e8251a;--ok:light-dark(#1f7a3a,#4cc26f);--warn:light-dark(#a35d00,#f0a43a);--carpet:light-dark(#2a2d31,#0c0d0f)}
+:root[data-theme=light]{color-scheme:light}:root[data-theme=dark]{color-scheme:dark}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.5 Inter,system-ui,sans-serif;overflow-x:clip}
+h1,h2,.big{font-family:"Inter Tight",Inter,sans-serif}
+h1{font-size:clamp(32px,4vw,46px);line-height:1.05;margin:0;text-wrap:balance;font-weight:700}
+h2{font-size:17px;margin:0 0 10px;font-weight:600}
+.band{padding:clamp(18px,3vw,36px) max(4vw,14px)}
+.wrap{max-width:1240px;margin:0 auto}
+.top{display:flex;flex-wrap:wrap;gap:10px 24px;align-items:end;justify-content:space-between;margin-bottom:18px}
+.top p{margin:4px 0 0;color:var(--mute);max-width:60ch}
+.presets{display:flex;flex-wrap:wrap;gap:8px}
+.grid{display:grid;grid-template-columns:330px minmax(0,1fr);gap:18px}
+@media(max-width:900px){.grid{grid-template-columns:minmax(0,1fr)}.rail{order:2}}
+.rail,.card{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px}
+.rail section+section{margin-top:16px;padding-top:14px;border-top:1px solid var(--line)}
+label{display:block;font-size:13px;color:var(--mute);margin:8px 0 3px}
+select,input[type=number]{width:100%;min-height:44px;font:16px Inter,sans-serif;color:var(--ink);background:var(--bg);border:1px solid var(--line);border-radius:7px;padding:8px 10px}
+input[type=range]{width:100%;accent-color:var(--red);min-height:30px}
+.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 10px}
+.seg{display:flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{flex:1;border:0;border-radius:0;background:transparent}
+.seg button[aria-pressed=true]{background:var(--ink);color:var(--bg)}
+button{font:600 15px Inter,sans-serif;min-height:44px;padding:8px 14px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink);cursor:pointer}
+button:focus-visible,select:focus-visible,input:focus-visible{outline:3px solid var(--red);outline-offset:2px}
+.go{background:var(--red);border-color:var(--red);color:#fff;font-size:17px;padding:8px 22px}
+.hint{font-size:13px;color:var(--mute);margin-top:4px}
+.bay{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:14px}
+@media(max-width:700px){.bay{grid-template-columns:minmax(0,1fr)}}
+.head{display:flex;flex-wrap:wrap;gap:12px 28px;align-items:end;margin-bottom:12px}
+.big{font-size:clamp(44px,7vw,76px);font-weight:700;line-height:1;white-space:nowrap}
+.big small{font-size:.35em;color:var(--mute);margin-left:4px}
+.kv{display:flex;flex-direction:column}
+.kv b{font:600 22px "Inter Tight",sans-serif;white-space:nowrap}.kv span{font-size:13px;color:var(--mute)}
+.fig{position:relative;min-height:320px}.fig>canvas{position:absolute;inset:0;width:100%;height:100%}
+.boxfig{min-height:200px;background:var(--carpet);border-radius:8px}
+.views{display:grid;gap:10px;grid-template-rows:1fr 1fr}
+.sidefig{min-height:200px;background:#101214;border-radius:8px}
+.tabs{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.tabs button{min-height:38px;padding:4px 12px;font-size:14px}
+.tabs button[aria-pressed=true]{border-color:var(--red);color:var(--red)}
+.ctl{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:10px}
+.ctl .grow{flex:1 1 200px}
+.strips{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:14px}
+.strip h2{font-size:15px;color:var(--mute);font-weight:600}
+.row{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 10px;padding:5px 0;border-bottom:1px solid var(--line);font-size:15px}
+.row:last-child{border:0}.row b{white-space:nowrap;text-align:right;font-variant-numeric:tabular-nums}
+.meter{height:10px;background:var(--bg);border-radius:5px;overflow:hidden;margin:3px 0 8px}
+.meter i{display:block;height:100%;background:var(--ok);transition:width .15s}
+.warn{list-style:none;padding:0;margin:0}
+.warn li{padding:8px 10px;border-radius:7px;margin-bottom:6px;background:var(--bg);border-left:4px solid var(--ok);font-size:15px}
+.warn li.y{border-color:var(--warn)}.warn li.r{border-color:var(--red)}
+.foot{font-size:13px;color:var(--mute);margin-top:14px}
+.rack{display:grid;grid-template-columns:minmax(0,1.7fr) minmax(0,1fr) 120px;gap:14px;margin-top:14px;align-items:stretch}
+@media(max-width:760px){.rack{grid-template-columns:minmax(0,1fr) 110px}.ampfig{grid-column:1/-1}}
+.ampfig{min-height:230px}.gaugefig{min-height:230px}
+.lever{display:flex;flex-direction:column;align-items:center;gap:10px}
+.ltrack{position:relative;flex:1;min-height:200px;width:46px;border-radius:23px;background:linear-gradient(90deg,#0b0c0d,#2b2f34 50%,#0b0c0d);box-shadow:inset 0 2px 6px #000;cursor:ns-resize;touch-action:none}
+.ltrack:focus-visible{outline:3px solid var(--red);outline-offset:3px}
+.ltrack::before{content:"";position:absolute;left:50%;top:14px;bottom:14px;width:4px;margin-left:-2px;background:#000;border-radius:2px}
+.lfill{position:absolute;left:50%;bottom:14px;width:4px;margin-left:-2px;background:var(--red);border-radius:2px;box-shadow:0 0 8px var(--red)}
+.lnotch{position:absolute;left:4px;right:4px;height:1px;background:#5d636b}
+.lhandle{position:absolute;left:50%;width:78px;height:34px;margin:-17px 0 0 -39px;border-radius:8px;background:linear-gradient(180deg,#f2f4f6,#9aa1a9 45%,#5d636b 55%,#c9cfd5);box-shadow:0 6px 10px rgba(0,0,0,.5),inset 0 1px 0 #fff;pointer-events:none}
+.lhandle::after{content:"";position:absolute;left:10px;right:10px;top:15px;height:4px;background:var(--red);border-radius:2px}
+.lval{font:700 20px "Inter Tight",sans-serif;white-space:nowrap}.lcap{font-size:13px;color:var(--mute)}
+@media(prefers-reduced-motion:reduce){.meter i{transition:none}}
+</style>
+</head>
+<body>
+<div class="band"><div class="wrap">
+  <div class="top">
+    <div><h1>Subwoofer Dyno</h1><p>Set up the subs, the amp and the box, then make a pull from 15 to 200 Hz. It charts loudness, cone travel, port air speed and air pressure inside the box.</p></div>
+    <div class="presets" id="presets"></div>
+  </div>
+  <div class="grid">
+    <aside class="rail">
+      <section><h2>Subwoofers</h2>
+        <div class="two">
+          <div><label for="size">Size</label><select id="size"></select></div>
+          <div><label for="count">How many</label><select id="count"><option>1</option><option>2</option><option>3</option><option>4</option></select></div>
+        </div>
+        <label for="coil">Voice coils</label>
+        <select id="coil"><option value="S2">Single 2 Ω (SVC2)</option><option value="S4">Single 4 Ω (SVC4)</option><option value="D1">Dual 1 Ω (DVC1)</option><option value="D2">Dual 2 Ω (DVC2)</option><option value="D4">Dual 4 Ω (DVC4)</option></select>
+        <label for="rms">Power rating per sub (W RMS)</label><input id="rms" type="number" min="50" step="50">
+        <label for="wiring">Wiring → final load</label><select id="wiring"></select>
+      </section>
+      <section><h2>Amplifier</h2>
+        <div class="two">
+          <div><label for="ampw">Rated W RMS</label><input id="ampw" type="number" min="50" step="50" value="2000"></div>
+          <div><label for="ampz">Rated at</label><select id="ampz"><option value="0.5">0.5 Ω</option><option value="1" selected>1 Ω</option><option value="2">2 Ω</option><option value="4">4 Ω</option></select></div>
+        </div>
+        <label for="ampmin">Lowest stable load</label>
+        <select id="ampmin"><option value="0.5">0.5 Ω</option><option value="1" selected>1 Ω</option><option value="2">2 Ω</option><option value="4">4 Ω</option></select>
+        <label for="gain">Gain / level: <span id="gainv"></span></label><input id="gain" type="range" min="5" max="100" value="100">
+      </section>
+      <section><h2>Enclosure (per sub)</h2>
+        <div class="seg" role="group" aria-label="Box type"><button id="bSealed" aria-pressed="false">Sealed</button><button id="bPorted" aria-pressed="true">Ported</button></div>
+        <label for="vb">Net volume: <span id="vbv"></span></label><input id="vb" type="range" min="0.2" max="8" step="0.05">
+        <div class="hint" id="vbhint"></div>
+        <div id="portctl">
+          <label for="fb">Tuning: <span id="fbv"></span></label><input id="fb" type="range" min="20" max="50" step="0.5">
+          <label for="ap">Port area per sub: <span id="apv"></span></label><input id="ap" type="range" min="6" max="80" step="1">
+        </div>
+        <label for="cabin">Vehicle (cabin gain)</label>
+        <select id="cabin"><option value="0">Off — outdoors, 1 m</option><option value="55">Sedan trunk</option><option value="65">Hatchback</option><option value="45">SUV / wagon</option><option value="38">Van</option></select>
+      </section>
+    </aside>
+
+    <main>
+      <div class="card">
+        <div class="head">
+          <div><div class="big" id="peak">—<small>dB</small></div><span class="hint" id="peakf">Peak SPL</span></div>
+          <div class="kv"><b id="nowF">—</b><span>Cursor</span></div>
+          <div class="kv"><b id="nowSpl">—</b><span>SPL here</span></div>
+          <div class="kv"><b id="nowX">—</b><span>Cone travel</span></div>
+          <div class="kv"><b id="nowP">—</b><span>Port air</span></div>
+        </div>
+        <div class="bay">
+          <div class="views">
+            <div class="fig boxfig"><canvas id="boxc" aria-label="Subwoofer box with moving cones"></canvas></div>
+            <div class="fig sidefig"><canvas id="sidec" aria-label="Side cutaway of the sub showing cone travel and smoke when overdriven"></canvas></div>
+          </div>
+          <div>
+            <div class="tabs" role="group" aria-label="Second trace">
+              <button data-t="x" aria-pressed="true">Excursion</button><button data-t="p" aria-pressed="false">Port air speed</button><button data-t="b" aria-pressed="false">Box pressure</button><button data-t="n" aria-pressed="false">SPL only</button>
+            </div>
+            <div class="fig"><canvas id="chart" aria-label="Dyno chart of SPL versus frequency"></canvas></div>
+          </div>
+        </div>
+        <div class="ctl">
+          <button class="go" id="pull">Dyno pull</button>
+          <button id="tone" aria-pressed="false">Play tone</button>
+          <div class="grow"><label for="cur" style="margin:0">Test frequency: <span id="curv"></span></label><input id="cur" type="range" min="0" max="1000" value="300"></div>
+        </div>
+      </div>
+
+      <div class="card"><h2>Amp rack</h2>
+        <div class="rack" style="margin-top:0">
+          <div class="fig ampfig"><canvas id="ampc" aria-label="Amplifier faceplate with status lights"></canvas></div>
+          <div class="fig gaugefig"><canvas id="gaugec" aria-label="Analog output wattage gauge"></canvas></div>
+          <div class="lever"><span class="lcap">Watts</span>
+            <div class="ltrack" id="lever" role="slider" tabindex="0" aria-label="Wattage lever" aria-valuemin="5" aria-valuemax="100"><i class="lfill" id="lfill"></i><div class="lhandle" id="lh"></div></div>
+            <span class="lval" id="lval">—</span></div>
+        </div>
+      </div>
+
+      <div class="strips">
+        <div class="card strip"><h2>Power and wiring</h2><div id="sPow"></div></div>
+        <div class="card strip"><h2>Box and port</h2><div id="sBox"></div></div>
+        <div class="card strip"><h2>Air and pressure</h2><div id="sAir"></div></div>
+        <div class="card strip"><h2>Car electrical</h2><div id="sElec"></div></div>
+      </div>
+      <div class="card" style="margin-top:14px"><h2>Tech inspection</h2><ul class="warn" id="warn"></ul>
+        <p class="foot">Driver numbers are typical figures for car-audio subs of each size, not one brand's spec sheet. The model is standard sealed and vented box physics (Thiele–Small), with no power compression or box leaks. Use it to compare setups, not as a meter reading.</p></div>
+    </main>
+  </div>
+</div></div>
+
+<script>
+{
+const RHO=1.18,C=343,QL=7;
+const SUBS={
+ '6.5':{fs:50,qts:.6,vas:7,sd:130,xmax:8,pe:200,s:[.2,.35],p:[.4,.6]},
+ '8':{fs:40,qts:.55,vas:14,sd:214,xmax:10,pe:300,s:[.35,.6],p:[.75,1]},
+ '10':{fs:34,qts:.5,vas:30,sd:335,xmax:13,pe:500,s:[.6,.9],p:[1.25,1.6]},
+ '12':{fs:31,qts:.48,vas:50,sd:480,xmax:15,pe:750,s:[.9,1.4],p:[1.75,2.5]},
+ '15':{fs:28,qts:.45,vas:110,sd:830,xmax:17,pe:1000,s:[1.5,2.5],p:[3,4.5]},
+ '18':{fs:26,qts:.42,vas:190,sd:1170,xmax:20,pe:1500,s:[2.5,4],p:[5,7]}};
+const PRESETS=[
+ {n:'Daily thump',v:{size:'12',count:'2',coil:'D2',ampw:1500,ampz:'1',ampmin:'1',ported:1,vb:2,fb:33,ap:24,cabin:'55'}},
+ {n:'SPL burp',v:{size:'15',count:'4',coil:'D1',ampw:8000,ampz:'1',ampmin:'1',ported:1,vb:3.5,fb:40,ap:40,cabin:'45'}},
+ {n:'Sealed SQ',v:{size:'10',count:'1',coil:'D4',ampw:500,ampz:'2',ampmin:'2',ported:0,vb:.8,fb:32,ap:16,cabin:'65'}}];
+const $=id=>document.getElementById(id);
+const st={size:'12',count:'2',coil:'D2',rms:750,wiring:0,ampw:2000,ampz:'1',ampmin:'1',gain:100,ported:1,vb:2,fb:33,ap:24,cabin:'55',tab:'x',cur:300};
+try{Object.assign(st,JSON.parse(localStorage.getItem('subdyno')||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem('subdyno',JSON.stringify(st))}catch(e){}};
+$('size').innerHTML=Object.keys(SUBS).map(k=>`<option value="${k}">${k}"</option>`).join('');
+$('presets').innerHTML=PRESETS.map((p,i)=>`<button data-p="${i}">${p.n}</button>`).join('');
+const fmt=(v,d=0)=>isFinite(v)?v.toLocaleString(undefined,{maximumFractionDigits:d,minimumFractionDigits:d}):'—';
+const fOf=t=>15*Math.pow(200/15,t), tOf=f=>Math.log(f/15)/Math.log(200/15);
+
+function wiringOpts(){
+ const n=+st.count,coils=st.coil[0]==='D'?2:1,zc=+st.coil.slice(1);
+ const per=coils===1?[{z:zc,l:'single coil'}]:[{z:zc*2,l:'coils series'},{z:zc/2,l:'coils parallel'}];
+ const o=[];per.forEach(p=>{o.push({z:p.z/n,zs:p.z,l:n===1?p.l:p.l+', subs parallel'});
+  if(n>1)o.push({z:p.z*n,zs:p.z,l:p.l+', subs series'});
+  if(n===4)o.push({z:p.z,zs:p.z,l:p.l+', 2×2 series-parallel'})});
+ return o.sort((a,b)=>a.z-b.z);
+}
+function model(){
+ const d=SUBS[st.size],n=+st.count,w=wiringOpts()[st.wiring]||wiringOpts()[0];
+ const Sd=d.sd/1e4,Vas=d.vas/1000,Vb=st.vb*28.3168/1000,qes=d.qts*1.08;
+ const ws=2*Math.PI*d.fs,Ts=1/ws,a=Vas/Vb;
+ const Cms=Vas/(RHO*C*C*Sd*Sd),Mms=1/(ws*ws*Cms),Re=.85*w.zs,Bl=Math.sqrt(ws*Mms*Re/qes);
+ const ampP=st.ampw*(+st.ampz)/w.z*(st.gain/100)**2;
+ const pSub=ampP/n,vSub=Math.sqrt(pSub*w.zs),X0=Bl*vSub*Math.SQRT2/Re*Cms;
+ const Ap=st.ap*6.4516e-4,Tb=1/(2*Math.PI*st.fb);
+ const qtc=d.qts*Math.sqrt(a+1),fc=d.fs*Math.sqrt(a+1),Tc=1/(2*Math.PI*fc);
+ const cab=+st.cabin;
+ const at=(f,x0=X0,nn=n,cabOn=true)=>{
+  const om=2*Math.PI*f;let vt,vc,vp=0;
+  if(st.ported){
+   const a3=Tb*Tb*Ts/d.qts+Tb*Ts*Ts/QL,a2=(a+1)*Tb*Tb+Ts*Ts+Tb*Ts/(QL*d.qts),a1=Tb/d.qts+Ts/QL;
+   const dr=om**4*Tb*Tb*Ts*Ts-om*om*a2+1,di=om*a1-om**3*a3,D=Math.hypot(dr,di),k=Sd*x0;
+   vt=k*om*om*Tb*Tb/D;vc=k*Math.hypot(1-om*om*Tb*Tb,om*Tb/QL)/D;vp=k*Math.hypot(1,om*Tb/QL)/D;
+  }else{const E=Math.hypot(1-om*om*Tc*Tc,om*Tc/qtc);vc=Sd*x0/(1+a)/E;vt=vc}
+  const ppk=RHO*om*om*nn*vt/(2*Math.PI);
+  let spl=20*Math.log10(ppk/Math.SQRT2/2e-5);
+  if(cabOn&&cab&&f<cab)spl+=Math.min(24,40*Math.log10(cab/f));
+  return{spl,x:vc/Sd*1000,pv:om*vp/Ap,pb:RHO*C*C/Vb*vt};
+ };
+ const sens=at(400,Bl*Math.sqrt(2*w.zs)/Re*Cms,1,false).spl;
+ const ref=at(400,X0,n,false).spl;let f3=15;
+ for(let f=200;f>=15;f-=.5){if(at(f,X0,n,false).spl<ref-3){f3=f;break}}
+ const N=240,pts=[];for(let i=0;i<=N;i++){const f=fOf(i/N);pts.push({f,...at(f)})}
+ let Lp=(C*C*Ap)/((2*Math.PI*st.fb)**2*Vb)-.823*Math.sqrt(Ap);
+ return{d,n,w,ampP,pSub,vSub,Sd,Vb,qtc,fc,f3,sens,pts,at,Lp,Bl};
+}
+let M=null,ghost=null,sweep=null;
+
+function syncUI(){
+ for(const k of['size','count','coil','ampw','ampz','ampmin','cabin'])$(k).value=st[k];
+ $('rms').value=st.rms;$('gain').value=st.gain;$('vb').value=st.vb;$('fb').value=st.fb;$('ap').value=st.ap;$('cur').value=st.cur;
+ $('bSealed').setAttribute('aria-pressed',!st.ported);$('bPorted').setAttribute('aria-pressed',!!st.ported);
+ $('portctl').style.display=st.ported?'':'none';
+ document.querySelectorAll('.tabs button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.t===st.tab));
+ const o=wiringOpts();if(st.wiring>=o.length)st.wiring=0;
+ $('wiring').innerHTML=o.map((w,i)=>`<option value="${i}">${fmt(w.z,w.z<1?2:1).replace(/\.0$/,'')} Ω — ${w.l}</option>`).join('');$('wiring').value=st.wiring;
+}
+function pickWiring(){const o=wiringOpts(),min=+st.ampmin;let best=0,bd=1e9;o.forEach((w,i)=>{const d=w.z>=min?w.z-min:1e6;if(d<bd){bd=d;best=i}});st.wiring=best}
+
+function recalc(){
+ M=model();const d=M.d,r=st.ported?d.p:d.s;
+ $('gainv').textContent=st.gain+'%';$('vbv').textContent=fmt(st.vb,2)+' ft³ ('+fmt(st.vb*28.32,1)+' L)';
+ $('fbv').textContent=fmt(st.fb,1)+' Hz';$('apv').textContent=st.ap+' in² ('+fmt(st.ap*6.45,0)+' cm²)';
+ $('vbhint').textContent=`Typical for a ${st.size}" ${st.ported?'ported':'sealed'} box: ${r[0]}–${r[1]} ft³ net`;
+ const pk=M.pts.reduce((a,b)=>b.spl>a.spl?b:a);
+ const mx=k=>M.pts.reduce((a,b)=>Math.max(a,b[k]),0);
+ const xmax=mx('x'),pvmax=mx('pv'),pbmax=mx('pb');
+ $('peak').innerHTML=fmt(pk.spl,1)+'<small>dB</small>';
+ $('peakf').textContent=`Peak SPL at ${fmt(pk.f,0)} Hz${+st.cabin?' (in car)':' (1 m)'}`;
+ const ampI=M.ampP/(14.4*.8),fuses=[30,40,60,80,100,125,150,200,250,300,400,500];
+ const fuse=fuses.find(x=>x>=ampI*1.1)||'2× '+Math.ceil(ampI*1.1/2/50)*50;
+ const gauge=ampI<=40?'8 AWG':ampI<=80?'4 AWG':ampI<=125?'2 AWG':ampI<=200?'1/0 AWG':ampI<=300?'2 runs of 1/0':'3+ runs of 1/0';
+ const row=(k,v)=>`<div class="row"><span>${k}</span><b>${v}</b></div>`;
+ $('sPow').innerHTML=row('Final load',fmt(M.w.z,2).replace(/\.?0+$/,'')+' Ω')+row('Amp output',fmt(M.ampP)+' W')+row('Per sub',fmt(M.pSub)+' W of '+fmt(st.rms))
+  +`<div class="meter"><i style="width:${Math.min(100,M.pSub/st.rms*100)}%;background:${M.pSub>st.rms*1.25?'var(--red)':M.pSub>st.rms?'var(--warn)':'var(--ok)'}"></i></div>`
+  +row('Voltage per sub',fmt(M.vSub,1)+' V RMS')+row('Current per sub',fmt(M.vSub/M.w.zs,1)+' A')+row('1 W / 1 m, one sub',fmt(M.sens,1)+' dB');
+ const vd=M.Sd*d.xmax/1000*1e6;
+ $('sBox').innerHTML=(st.ported?row('Tuning',fmt(st.fb,1)+' Hz')+row('Port length (per sub)',M.Lp>0?fmt(M.Lp*39.37,1)+'"':'too short')
+  +row('Port area per ft³',fmt(st.ap/st.vb,1)+' in²'):row('Box Qtc',fmt(M.qtc,2))+row('Box resonance',fmt(M.fc,1)+' Hz'))
+  +row('−3 dB point',fmt(M.f3,0)+' Hz')+row('Cone area',fmt(d.sd)+' cm²')+row('Xmax (one way)',d.xmax+' mm')+row('Peak travel',fmt(xmax,1)+' mm')
+  +`<div class="meter"><i style="width:${Math.min(100,xmax/d.xmax*100)}%;background:${xmax>d.xmax*1.3?'var(--red)':xmax>d.xmax?'var(--warn)':'var(--ok)'}"></i></div>`;
+ const pa=20e-6*10**(pk.spl/20);
+ $('sAir').innerHTML=row('Sound pressure at peak',fmt(pa,0)+' Pa')+row('…in psi',fmt(pa/6894.76,3)+' psi')
+  +row('Air moved per stroke',fmt(vd*+st.count,0)+' cm³')+row('Box pressure peak',fmt(M.pts.length&&pbmax,0)+' Pa / '+fmt(pbmax/6894.76,3)+' psi')
+  +(st.ported?row('Port air speed peak',fmt(pvmax,1)+' m/s')+`<div class="meter"><i style="width:${Math.min(100,pvmax/34*100)}%;background:${pvmax>26?'var(--red)':pvmax>17?'var(--warn)':'var(--ok)'}"></i></div>`:'');
+ $('sElec').innerHTML=row('Amp draw (14.4 V, class D)',fmt(ampI)+' A')+row('Main fuse',typeof fuse==='number'?fuse+' A':fuse+' A')+row('Power wire, ~17 ft',gauge)
+  +row('Alternator',ampI>110?'upgrade + Big 3':ampI>60?'Big 3 wiring':'stock is fine');
+ const W=[];
+ if(M.w.z<+st.ampmin)W.push(['r',`The load is ${M.w.z} Ω, but the amp is only stable down to ${st.ampmin} Ω. Expect it to overheat or go into protect mode.`]);
+ if(M.pSub>st.rms*1.25)W.push(['r',`Each sub gets ${fmt(M.pSub)} W, well over its ${fmt(st.rms)} W rating. Turn the gain down or the coils can burn.`]);
+ else if(M.pSub>st.rms)W.push(['y',`Each sub gets a little over its rating. That's fine for short bursts, but too hot for long sessions.`]);
+ if(xmax>d.xmax*1.3)W.push(['r',`The cone travels ${fmt(xmax,1)} mm against an Xmax of ${d.xmax} mm, so it'll hit mechanical limits (slapping). Add a subsonic filter${st.ported?` around ${fmt(st.fb*.8,0)} Hz`:''} or bring the gain down.`]);
+ else if(xmax>d.xmax)W.push(['y',`The cone goes past Xmax at the bottom of the sweep, which adds distortion. A subsonic filter helps.`]);
+ if(st.ported&&pvmax>26)W.push(['r',`Port air hits ${fmt(pvmax,0)} m/s and will chuff loudly. Use more port area (aim for 12–16 in² per ft³).`]);
+ else if(st.ported&&pvmax>17)W.push(['y',`Port air reaches ${fmt(pvmax,0)} m/s, so you'll hear some port noise on hard notes.`]);
+ if(st.ported&&M.Lp<=0)W.push(['r','The port is too big for this box and tuning, so a usable port length isn\'t possible. Shrink the area or lower the tuning.']);
+ if(st.ported&&M.Lp*39.37>40)W.push(['y',`The port has to be ${fmt(M.Lp*39.37,0)}" long, which is hard to fit. Try less area, a bigger box, or higher tuning.`]);
+ if(st.vb<r[0]*.8||st.vb>r[1]*1.3)W.push(['y',`${fmt(st.vb,2)} ft³ is outside the usual range for this sub size.`]);
+ if(!st.ported&&M.qtc>1.1)W.push(['y',`At Qtc ${fmt(M.qtc,2)} this sealed box is boomy. A bigger box will tighten it up.`]);
+ if(!W.length)W.push(['g','Everything passes. Clean setup, so go make a pull.']);
+ $('warn').innerHTML=W.map(([c,t])=>`<li class="${c}">${t}</li>`).join('');
+ save();readout();drawChart();if(typeof setLever==='function')setLever();
+}
+function curF(){return sweep?fOf(sweep.t):fOf(st.cur/1000)}
+function readout(){
+ const f=curF(),v=M.at(f);
+ $('nowF').textContent=fmt(f,1)+' Hz';$('curv').textContent=fmt(f,1)+' Hz';
+ $('nowSpl').textContent=fmt(v.spl,1)+' dB';$('nowX').textContent=fmt(v.x,1)+' mm';
+ $('nowP').textContent=st.ported?fmt(v.pv,1)+' m/s':'sealed';
+ if(osc)osc.frequency.setTargetAtTime(f,actx.currentTime,.02);
+}
+
+const chart=$('chart');
+function drawChart(){
+ const r=chart.getBoundingClientRect(),dpr=devicePixelRatio||1,W=r.width,H=r.height;if(!W)return;
+ chart.width=W*dpr;chart.height=H*dpr;const g=chart.getContext('2d');g.scale(dpr,dpr);
+ const cs=getComputedStyle(document.body),ink=cs.color,mute=cs.getPropertyValue('--mute'),line=cs.getPropertyValue('--line'),red='#e8251a';
+ const narrow=W<520,L=narrow?34:44,R=st.tab==='n'?12:(narrow?36:48),T=12,B=28;
+ const pts=M.pts,lim=sweep?sweep.t:1;
+ const maxS=Math.max(...pts.map(p=>p.spl),ghost?Math.max(...ghost.map(p=>p.spl)):0);
+ const y1=Math.ceil(maxS/5)*5+3,y0=y1-45;
+ const X=f=>L+tOf(f)*(W-L-R),Y=v=>T+(1-(v-y0)/(y1-y0))*(H-T-B);
+ g.font='12px Inter,sans-serif';g.lineWidth=1;
+ for(const f of[20,30,40,50,60,80,100,150,200]){g.strokeStyle=line;g.beginPath();g.moveTo(X(f),T);g.lineTo(X(f),H-B);g.stroke();
+  if(!narrow||[20,40,80,150].includes(f)){g.fillStyle=mute;g.textAlign='center';g.fillText(f,X(f),H-10)}}
+ for(let v=Math.ceil(y0/10)*10;v<=y1;v+=10){g.strokeStyle=line;g.beginPath();g.moveTo(L,Y(v));g.lineTo(W-R,Y(v));g.stroke();g.fillStyle=mute;g.textAlign='right';g.fillText(v,L-6,Y(v)+4)}
+ g.textAlign='left';g.fillStyle=mute;g.fillText(narrow?'dB':'dB SPL',L+4,T+12);
+ const path=(arr,yf,col,w,dash)=>{g.strokeStyle=col;g.lineWidth=w;g.setLineDash(dash||[]);g.beginPath();arr.forEach((p,i)=>{if(tOf(p.f)>lim+1e-9)return;const y=yf(p);i?g.lineTo(X(p.f),y):g.moveTo(X(p.f),y)});g.stroke();g.setLineDash([])};
+ if(ghost)path(ghost,p=>Y(p.spl),mute,1.5,[4,4]);
+ const k={x:['x',M.d.xmax,'mm','Xmax'],p:['pv',17,'m/s','chuff'],b:['pb',0,'Pa','']}[st.tab];
+ if(k&&(st.tab!=='p'||st.ported)){
+  const mx=Math.max(...pts.map(p=>p[k[0]]),k[1])*1.15,Y2=v=>T+(1-v/mx)*(H-T-B);
+  if(k[1]){g.strokeStyle=red;g.globalAlpha=.5;g.setLineDash([2,4]);g.beginPath();g.moveTo(L,Y2(k[1]));g.lineTo(W-R,Y2(k[1]));g.stroke();g.setLineDash([]);g.globalAlpha=1;g.fillStyle=red;g.textAlign='left';g.fillText(k[3],L+4,Y2(k[1])-4)}
+  path(pts,p=>Y2(p[k[0]]),red,2,[6,3]);
+  g.fillStyle=red;g.textAlign='left';for(let i=0;i<=3;i++){const v=mx*i/3;g.fillText(fmt(v,v<10?1:0),W-R+5,Y2(v)+4)}
+  g.textAlign='right';g.fillText(k[2],W-4,T+12);
+ }
+ path(pts,p=>Y(p.spl),ink,3);
+ const f=curF();g.strokeStyle=red;g.lineWidth=1.5;g.beginPath();g.moveTo(X(f),T);g.lineTo(X(f),H-B);g.stroke();
+ const v=M.at(f);g.fillStyle=red;g.beginPath();g.arc(X(f),Y(v.spl),5,0,7);g.fill();
+}
+
+const boxc=$('boxc'),reduce=matchMedia('(prefers-reduced-motion: reduce)').matches;let phase=0,last=0;
+function drawBox(now){
+ const dt=Math.min(.05,(now-last)/1000||0);last=now;
+ const r=boxc.getBoundingClientRect(),dpr=devicePixelRatio||1,W=r.width,H=r.height;
+ if(W){boxc.width=W*dpr;boxc.height=H*dpr;const g=boxc.getContext('2d');g.scale(dpr,dpr);
+ const f=curF(),v=M.at(f),vis=Math.min(f,200)/12;phase+=dt*vis*2*Math.PI*(reduce?0:1);
+ const n=+st.count,port=st.ported,pad=14,bw=W-pad*2,bh=H-pad*2-14;
+ const gr=g.createLinearGradient(0,pad,0,pad+bh);gr.addColorStop(0,'#3a3e44');gr.addColorStop(1,'#1c1e21');
+ g.fillStyle='rgba(0,0,0,.35)';g.fillRect(pad+6,pad+bh,bw-12,10);
+ g.fillStyle=gr;g.beginPath();g.roundRect(pad,pad,bw,bh,10);g.fill();
+ const portW=port?Math.max(14,bw*.11):0,cols=n<=2?n:2,rows=n<=2?1:2;
+ const cw=(bw-portW-20)/cols,ch=(bh-16)/rows,rad=Math.min(cw,ch)/2-8;
+ const ex=Math.min(1.6,v.x/M.d.xmax),s=Math.sin(phase);
+ for(let i=0;i<n;i++){
+  const cx=pad+10+cw*(i%cols)+cw/2,cy=pad+8+ch*Math.floor(i/cols)+ch/2;
+  g.fillStyle='#0d0e10';g.beginPath();g.arc(cx,cy,rad,0,7);g.fill();
+  g.strokeStyle='#5d636b';g.lineWidth=rad*.05;g.beginPath();g.arc(cx,cy,rad*.95,0,7);g.stroke();
+  const push=1+ex*.07*s,cr=rad*.82*push;
+  const cg=g.createRadialGradient(cx-cr*.3*s,cy-cr*.3,cr*.1,cx,cy,cr);cg.addColorStop(0,'#55595f');cg.addColorStop(1,'#1d1f22');
+  g.fillStyle='#2b2e33';g.beginPath();g.arc(cx,cy,rad*.88,0,7);g.fill();
+  g.fillStyle=cg;g.beginPath();g.arc(cx,cy,cr,0,7);g.fill();
+  g.fillStyle=ex>1?'#e8251a':'#9aa1a9';g.beginPath();g.arc(cx,cy,cr*.3,0,7);g.fill();
+  g.fillStyle='rgba(255,255,255,.18)';g.beginPath();g.ellipse(cx-cr*.08,cy-cr*.1,cr*.15,cr*.08,-.5,0,7);g.fill();
+ }
+ if(port){const px=pad+bw-portW-8,py=pad+10,ph=bh-20;g.fillStyle='#050506';g.fillRect(px,py,portW,ph);
+  const amp=Math.min(1,v.pv/30)*ph*.25;g.strokeStyle=v.pv>17?'#e8251a':'#8fd3ff';g.lineWidth=1.5;
+  for(let k=0;k<7;k++){const yy=py+ph*(k+.5)/7+amp*s;if(yy>py&&yy<py+ph){g.beginPath();g.moveTo(px+4,yy);g.lineTo(px+portW-4,yy);g.stroke()}}}
+ g.fillStyle='#c9cfd5';g.font='600 12px Inter,sans-serif';g.textAlign='left';
+ g.fillText(`${n}× ${st.size}" · ${fmt(st.vb,2)} ft³ ${port?'@ '+st.fb+' Hz':'sealed'}`,pad,H-6);}
+ drawSide(dt);drawAmp(dt);drawGauge(dt);
+ if(sweep){sweep.t=Math.min(1,(now-sweep.t0)/4000);readout();drawChart();if(sweep.t>=1){sweep=null;readout();drawChart();$('pull').disabled=false}}
+ requestAnimationFrame(drawBox);
+}
+
+const sidec=$('sidec');let temp=.3,smoke=[],slap=0;
+function drawSide(dt){
+ const r=sidec.getBoundingClientRect(),dpr=devicePixelRatio||1,W=r.width,H=r.height;if(!W)return;
+ sidec.width=W*dpr;sidec.height=H*dpr;const g=sidec.getContext('2d');g.scale(dpr,dpr);
+ const f=curF(),v=M.at(f),ex=v.x/M.d.xmax,s=Math.sin(phase);
+ // coil heat eases toward how hard it's being driven (power vs rating)
+ const target=M.pSub/st.rms;temp+=(target-temp)*Math.min(1,dt*(target>temp?.45:.25));
+ const cy=H/2-6,u=Math.min(W/10,H/5.2),mx=W*.2;      // magnet x, unit size
+ const stroke=Math.min(1.6,ex)*u*.55*s;             // exaggerated cone travel
+ const coilX=mx+u*1.2+stroke,frontX=W*.72+stroke*.9,rimX=W*.78;
+ const coneH=Math.min(H*.42,u*2.2);
+ // basket
+ g.strokeStyle='#6b727a';g.lineWidth=2;g.beginPath();
+ g.moveTo(mx+u*1.1,cy-u*.7);g.lineTo(rimX,cy-coneH-6);g.moveTo(mx+u*1.1,cy+u*.7);g.lineTo(rimX,cy+coneH+6);g.stroke();
+ g.fillStyle='#8a929b';g.fillRect(rimX-2,cy-coneH-14,8,16);g.fillRect(rimX-2,cy+coneH-2,8,16);
+ // magnet stack: back plate, ferrite ring, top plate
+ g.fillStyle=slap>0?`rgba(232,37,26,${.5+slap})`:'#5a6068';g.fillRect(mx-u*.9,cy-u*1.3,u*.35,u*2.6);
+ g.fillStyle='#2c2f33';g.fillRect(mx-u*.55,cy-u*1.2,u*1.1,u*2.4);
+ g.fillStyle='#777e87';g.fillRect(mx+u*.55,cy-u*1.25,u*.3,u*2.5);
+ g.fillStyle='#4a4f56';g.fillRect(mx-u*.55,cy-u*.32,u*1.6,u*.64);   // pole piece
+ // voice coil former + windings (glow with heat)
+ const hot=Math.max(0,Math.min(1,(temp-.8)/.7));
+ g.fillStyle=`rgb(${180+75*hot},${120-60*hot},${50-30*hot})`;
+ g.fillRect(coilX-u*.55,cy-u*.42,u*.75,u*.1);g.fillRect(coilX-u*.55,cy+u*.32,u*.75,u*.1);
+ if(hot>.2){g.fillStyle=`rgba(255,90,20,${hot*.35})`;g.beginPath();g.arc(coilX-u*.2,cy,u*.9,0,7);g.fill()}
+ // spider (wavy)
+ g.strokeStyle='#c8b98a';g.lineWidth=1.5;
+ for(const sg of[-1,1]){g.beginPath();for(let i=0;i<=8;i++){const x=coilX+u*.15+i*(u*.9/8)-stroke*i/16,y=cy+sg*(u*.42+i*u*.12)+(i%2?3:-3);i?g.lineTo(x,y):g.moveTo(x,y)}g.stroke()}
+ // cone
+ const cg=g.createLinearGradient(coilX,0,frontX,0);cg.addColorStop(0,'#3a3d42');cg.addColorStop(1,'#1b1d20');
+ g.fillStyle=cg;g.strokeStyle=ex>1?'#e8251a':'#9aa1a9';g.lineWidth=3;
+ g.beginPath();g.moveTo(coilX+u*.2,cy-u*.42);g.quadraticCurveTo((coilX+frontX)/2,cy-coneH*.55,frontX,cy-coneH);
+ g.lineTo(frontX,cy+coneH);g.quadraticCurveTo((coilX+frontX)/2,cy+coneH*.55,coilX+u*.2,cy+u*.42);g.closePath();g.fill();g.stroke();
+ // dust cap
+ g.fillStyle='#6f757d';g.beginPath();g.ellipse(coilX+u*.45,cy,u*.35,u*.55,0,-Math.PI/2,Math.PI/2);g.fill();
+ // surround rolls
+ g.strokeStyle='#202226';g.lineWidth=u*.22;
+ for(const sg of[-1,1]){g.beginPath();g.arc((frontX+rimX)/2+2,cy+sg*coneH,Math.max(3,(rimX-frontX)/2+5),sg<0?Math.PI:0,sg<0?2*Math.PI:Math.PI,sg>0);g.stroke()}
+ // Xmax markers
+ const xm=u*.55*(W>0?1:0);g.strokeStyle='rgba(232,37,26,.6)';g.setLineDash([3,3]);g.lineWidth=1;
+ for(const d of[-xm,xm]){g.beginPath();g.moveTo(mx+u*1.2+d,cy+u*1.25);g.lineTo(mx+u*1.2+d,cy+u*1.6);g.stroke()}g.setLineDash([]);
+ // bottoming flash when way past Xmax at the back of the stroke
+ if(ex>1.3&&s<-.95&&!reduce)slap=.5;slap=Math.max(0,slap-dt*2.5);
+ // smoke from the voice coil gap
+ if(!reduce&&temp>1){const rate=(temp-1)*40;let k=rate*dt;while(k>0){if(Math.random()<k)smoke.push({x:mx+u*(.6+Math.random()*.4),y:cy-u*1.2,vx:(Math.random()-.5)*12,vy:-(18+Math.random()*22),r:u*.25,a:Math.min(.6,.2+(temp-1)*.5),life:0});k--}}
+ smoke=smoke.filter(p=>(p.life+=dt)<3.2);
+ for(const p of smoke){p.x+=(p.vx+8*Math.sin(p.life*2+p.r))*dt;p.y+=p.vy*dt;p.r+=u*.35*dt;const al=p.a*(1-p.life/3.2);
+  const sg=g.createRadialGradient(p.x,p.y,0,p.x,p.y,p.r);sg.addColorStop(0,`rgba(190,190,195,${al})`);sg.addColorStop(1,'rgba(190,190,195,0)');g.fillStyle=sg;g.beginPath();g.arc(p.x,p.y,p.r,0,7);g.fill()}
+ // status text
+ g.font='600 12px Inter,sans-serif';g.textAlign='left';
+ const ct=temp>1.25?['SMOKING — back the gain off','#e8251a']:temp>1?['Coil getting hot','#f0a43a']:['Coil temp OK','#4cc26f'];
+ g.fillStyle=ct[1];g.fillText(ct[0],10,H-10);
+ const xt=ex>1.3?['Bottoming out!','#e8251a']:ex>1?['Past Xmax','#f0a43a']:[fmt(v.x,1)+' mm of '+M.d.xmax,'#c9cfd5'];
+ g.fillStyle=xt[1];g.textAlign='right';g.fillText(xt[0],W-10,H-10);
+ g.fillStyle='#9aa4ad';g.textAlign='left';g.textAlign='right';g.fillText('Side cutaway',W-10,16);
+}
+
+const ampc=$('ampc'),gaugec=$('gaugec');let needle=0,clipF=0;
+function cv(c){const r=c.getBoundingClientRect(),d=devicePixelRatio||1;if(!r.width)return null;c.width=r.width*d;c.height=r.height*d;const g=c.getContext('2d');g.scale(d,d);return[g,r.width,r.height]}
+function knob(g,x,y,r,t,lab){g.fillStyle='#0b0c0d';g.beginPath();g.arc(x,y+2,r+2,0,7);g.fill();
+ const kg=g.createRadialGradient(x-r*.3,y-r*.3,1,x,y,r);kg.addColorStop(0,'#8a929b');kg.addColorStop(1,'#22252a');g.fillStyle=kg;g.beginPath();g.arc(x,y,r,0,7);g.fill();
+ const a=Math.PI*(.75+1.5*t);g.strokeStyle='#e8251a';g.lineWidth=3;g.beginPath();g.moveTo(x+Math.cos(a)*r*.3,y+Math.sin(a)*r*.3);g.lineTo(x+Math.cos(a)*r*.85,y+Math.sin(a)*r*.85);g.stroke();
+ g.fillStyle='#9aa4ad';g.font='600 10px Inter,sans-serif';g.textAlign='center';g.fillText(lab,x,y+r+14)}
+function led(g,x,y,on,col,lab){if(on){g.fillStyle=col;g.shadowColor=col;g.shadowBlur=14}else g.fillStyle='#2a2d31';g.beginPath();g.arc(x,y,5,0,7);g.fill();g.shadowBlur=0;
+ g.fillStyle='#9aa4ad';g.font='600 10px Inter,sans-serif';g.textAlign='left';g.fillText(lab,x+10,y+4)}
+function drawAmp(dt){const c=cv(ampc);if(!c)return;const[g,W,H]=c;
+ const protect=M.w.z<+st.ampmin,clip=st.gain>=90;clipF+=dt;
+ // heatsink fins
+ g.fillStyle='#0b0c0d';g.beginPath();g.roundRect(2,6,W-4,H-12,14);g.fill();
+ for(let x=14;x<W-14;x+=9){const fg=g.createLinearGradient(x,0,x+6,0);fg.addColorStop(0,'#3a3e44');fg.addColorStop(.5,'#8a929b');fg.addColorStop(1,'#26292d');g.fillStyle=fg;g.fillRect(x,8,6,H*.16);g.fillRect(x,H-8-H*.16,6,H*.16)}
+ // brushed face
+ const fx=10,fy=H*.2,fw=W-20,fh=H*.6;const bg=g.createLinearGradient(0,fy,0,fy+fh);bg.addColorStop(0,'#2e3238');bg.addColorStop(.5,'#1a1c20');bg.addColorStop(1,'#2a2d33');
+ g.fillStyle=bg;g.beginPath();g.roundRect(fx,fy,fw,fh,8);g.fill();
+ g.strokeStyle='rgba(255,255,255,.04)';g.lineWidth=1;for(let y=fy+2;y<fy+fh;y+=2){g.beginPath();g.moveTo(fx+4,y);g.lineTo(fx+fw-4,y);g.stroke()}
+ g.fillStyle='#e8251a';g.fillRect(fx,fy+fh-5,fw,3);
+ const sm=W<330;
+ g.fillStyle='#eef1f3';g.font=`italic 800 ${sm?18:24}px "Inter Tight",sans-serif`;g.textAlign='left';g.fillText('DYNOFORCE',fx+14,fy+(sm?26:32));
+ g.fillStyle='#e8251a';g.font=`700 ${sm?11:13}px Inter,sans-serif`;g.fillText(`MONO ${st.ampw}.1  ·  CLASS D  ·  ${st.ampmin} Ω STABLE`,fx+14,fy+(sm?42:52));
+ const ly=fy+fh-22;led(g,fx+18,ly,true,'#4cc26f','POWER');led(g,fx+82,ly,clip&&(Math.sin(clipF*25)>-.3),'#f0a43a','CLIP');led(g,fx+138,ly,protect&&Math.sin(clipF*6)>0,'#e8251a','PROTECT');
+ if(!sm){const kx=fx+fw-130,ky=fy+fh*.45,kr=Math.min(16,fh*.16);knob(g,kx,ky,kr,(st.gain-5)/95,'GAIN');knob(g,kx+48,ky,kr,.45,'LPF');knob(g,kx+96,ky,kr,.15,'BOOST');}
+ // terminals
+ const ty=H-H*.2+((H*.2-8)/2)-2;[['+12V','#e8251a'],['GND','#6b727a'],['REM','#2f80ed'],['SPK +','#c9a227'],['SPK −','#c9a227']].forEach((t,i,a)=>{const x=fx+20+i*((fw-40)/(a.length-1));
+  g.fillStyle='#0b0c0d';g.beginPath();g.arc(x,ty,8,0,7);g.fill();g.fillStyle=t[1];g.beginPath();g.arc(x,ty,5.5,0,7);g.fill()});
+ g.fillStyle='rgba(11,12,13,.85)';g.fillRect(10,8,W-20,15);g.fillStyle='#c9cfd5';g.font='600 10px Inter,sans-serif';g.textAlign='center';
+ ['+12V','GND','REM','SPK +','SPK −'].forEach((t,i,a)=>g.fillText(t,fx+20+i*((fw-40)/(a.length-1)),18));
+}
+function drawGauge(dt){const c=cv(gaugec);if(!c)return;const[g,W,H]=c;
+ const full=st.ampw*(+st.ampz)/M.w.z,step=[100,250,500,1000,2500,5000,10000].find(s=>full*1.15/s<=8)||20000,max=Math.ceil(full*1.15/step)*step;
+ const live=sweep||osc?(.92+.08*Math.sin(phase*.7)):1,target=M.ampP*live;needle+=(target-needle)*Math.min(1,dt*6);
+ const cx=W/2,cy=H*.48,R=Math.min(W*.44,H*.4),a0=Math.PI*.8,a1=Math.PI*2.2,A=v=>a0+(a1-a0)*Math.min(1.02,v/max);
+ const fg=g.createRadialGradient(cx,cy-R*.3,R*.1,cx,cy,R*1.15);fg.addColorStop(0,'#f4efe3');fg.addColorStop(1,'#c9c2b0');
+ g.fillStyle='#0b0c0d';g.beginPath();g.roundRect(2,2,W-4,H-4,12);g.fill();
+ g.fillStyle=fg;g.beginPath();g.arc(cx,cy,R*1.08,Math.PI*.72,Math.PI*2.28);g.closePath();g.fill();
+ const redAt=st.rms*+st.count;g.strokeStyle='rgba(232,37,26,.85)';g.lineWidth=R*.1;g.beginPath();g.arc(cx,cy,R*.88,A(Math.min(redAt,max)),a1);g.stroke();
+ g.strokeStyle='#1b1d20';g.fillStyle='#1b1d20';g.textAlign='center';g.font=`600 ${R<80?9:11}px Inter,sans-serif`;
+ for(let i=0;i<=max/step;i++){const v=i*step,a=A(v);g.lineWidth=2;g.beginPath();g.moveTo(cx+Math.cos(a)*R*.78,cy+Math.sin(a)*R*.78);g.lineTo(cx+Math.cos(a)*R*.95,cy+Math.sin(a)*R*.95);g.stroke();
+  g.fillText(v>=1000?(v/1000)+'k':v,cx+Math.cos(a)*R*.64,cy+Math.sin(a)*R*.64+4);
+  const am=A(v+step/2);if(i<max/step){g.lineWidth=1;g.beginPath();g.moveTo(cx+Math.cos(am)*R*.86,cy+Math.sin(am)*R*.86);g.lineTo(cx+Math.cos(am)*R*.95,cy+Math.sin(am)*R*.95);g.stroke()}}
+ g.font='700 11px Inter,sans-serif';g.fillText('WATTS RMS',cx,cy-R*.32);
+ const a=A(needle);g.strokeStyle='#e8251a';g.lineWidth=3;g.beginPath();g.moveTo(cx-Math.cos(a)*R*.12,cy-Math.sin(a)*R*.12);g.lineTo(cx+Math.cos(a)*R*.92,cy+Math.sin(a)*R*.92);g.stroke();
+ g.fillStyle='#1b1d20';g.beginPath();g.arc(cx,cy,R*.08,0,7);g.fill();
+ g.fillStyle='#eef1f3';g.font=`700 ${R<80?16:20}px "Inter Tight",sans-serif`;g.fillText(fmt(needle)+' W',cx,H-30);
+ g.fillStyle='#9aa4ad';g.font='600 11px Inter,sans-serif';g.fillText(`${fmt(Math.sqrt(M.ampP*M.w.z),1)} V · ${fmt(Math.sqrt(M.ampP/M.w.z),1)} A · ${fmt(M.w.z,2).replace(/\.?0+$/,'')} Ω`,cx,H-12);
+}
+const lever=$('lever');
+function setLever(){const t=(st.gain-5)/95,h=lever.clientHeight-40;$('lh').style.top=(20+(1-t)*h)+'px';$('lfill').style.height=(t*h)+'px';$('lfill').style.bottom='20px';
+ lever.setAttribute('aria-valuenow',st.gain);lever.setAttribute('aria-valuetext',fmt(M?M.ampP:0)+' watts');$('lval').textContent=M?fmt(M.ampP)+' W':'—'}
+lever.innerHTML+=Array.from({length:11},(_,i)=>`<i class="lnotch" style="top:${14+i*10}%"></i>`).join('');
+function leverAt(e){const r=lever.getBoundingClientRect(),t=1-(e.clientY-r.top-20)/(r.height-40);st.gain=Math.round(5+95*Math.max(0,Math.min(1,t)));$('gain').value=st.gain;recalc()}
+lever.addEventListener('pointerdown',e=>{lever.setPointerCapture(e.pointerId);leverAt(e)});
+lever.addEventListener('pointermove',e=>{if(lever.hasPointerCapture(e.pointerId))leverAt(e)});
+lever.addEventListener('keydown',e=>{const d={ArrowUp:5,ArrowRight:5,ArrowDown:-5,ArrowLeft:-5,PageUp:20,PageDown:-20,Home:-100,End:100}[e.key];if(d==null)return;e.preventDefault();st.gain=Math.max(5,Math.min(100,st.gain+d));$('gain').value=st.gain;recalc()});
+new ResizeObserver(()=>setLever()).observe(lever);
+
+let actx=null,osc=null,og=null;
+$('tone').onclick=()=>{try{
+ if(osc){og.gain.setTargetAtTime(0,actx.currentTime,.03);const o=osc;setTimeout(()=>o.stop(),200);osc=null;$('tone').setAttribute('aria-pressed','false');$('tone').textContent='Play tone';return}
+ actx=actx||new AudioContext();osc=actx.createOscillator();og=actx.createGain();og.gain.value=0;osc.connect(og).connect(actx.destination);
+ osc.frequency.value=curF();osc.start();og.gain.setTargetAtTime(.25,actx.currentTime,.05);$('tone').setAttribute('aria-pressed','true');$('tone').textContent='Stop tone';
+}catch(e){$('tone').textContent='Audio blocked'}};
+$('pull').onclick=()=>{if(M)ghost=M.pts;M=model();sweep={t:0,t0:performance.now()};$('pull').disabled=true};
+
+const num=['ampw','rms'],str=['size','count','coil','ampz','ampmin','cabin'];
+str.forEach(k=>$(k).addEventListener('change',e=>{st[k]=e.target.value;if(k==='size'){st.rms=SUBS[st.size].pe;st.vb=(SUBS[st.size][st.ported?'p':'s'][0]+SUBS[st.size][st.ported?'p':'s'][1])/2}
+ if(['count','coil','ampmin','size'].includes(k))pickWiring();syncUI();recalc()}));
+num.forEach(k=>$(k).addEventListener('input',e=>{const v=+e.target.value;if(v>0){st[k]=v;recalc()}}));
+$('wiring').onchange=e=>{st.wiring=+e.target.value;recalc()};
+[['gain',1],['vb',0],['fb',0],['ap',1]].forEach(([k])=>$(k).addEventListener('input',e=>{st[k]=+e.target.value;recalc()}));
+$('cur').addEventListener('input',e=>{st.cur=+e.target.value;readout();drawChart();save()});
+$('bSealed').onclick=()=>{st.ported=0;const r=SUBS[st.size].s;st.vb=(r[0]+r[1])/2;syncUI();recalc()};
+$('bPorted').onclick=()=>{st.ported=1;const r=SUBS[st.size].p;st.vb=(r[0]+r[1])/2;syncUI();recalc()};
+document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>{st.tab=b.dataset.t;syncUI();drawChart();save()});
+$('presets').onclick=e=>{const b=e.target.closest('[data-p]');if(!b)return;Object.assign(st,PRESETS[b.dataset.p].v);st.rms=SUBS[st.size].pe;st.gain=100;pickWiring();ghost=null;syncUI();recalc()};
+const ro=new ResizeObserver(()=>drawChart());ro.observe(chart);
+if(!SUBS[st.size])st.size='12';if(!st.rms)st.rms=SUBS[st.size].pe;
+syncUI();recalc();requestAnimationFrame(drawBox);
+}
+</script>
+</body>
+</html>
